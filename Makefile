@@ -159,21 +159,8 @@ LIBRARIES :=
 
 ################################################################################
 
-# Makefile include to help find GL Libraries
-include ./findgllib.mk
-
-# OpenGL specific libraries
-ifeq ($(TARGET_OS),darwin)
- # Mac OSX specific libraries and paths to include
- LIBRARIES += -L/System/Library/Frameworks/OpenGL.framework/Libraries
- LIBRARIES += -lGL -lGLU
- ALL_LDFLAGS += -Xlinker -framework -Xlinker GLUT
-else
- LIBRARIES += $(GLLINK)
- LIBRARIES += -lGL -lGLU -lX11 -lglut
  LIBRARIES += -L/usr/local/lib
  LIBRARIES += -lopencv_objdetect -lopencv_features2d -lopencv_imgproc -lopencv_highgui -lopencv_core -lopencv_imgcodecs
-endif
 
 # Gencode arguments
 SMS ?= 20 30 35 37 50 52 60
