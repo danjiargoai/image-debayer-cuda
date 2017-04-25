@@ -2,24 +2,13 @@
 #include <stdlib.h>
 #include <cuda_runtime.h>
 #include <helper_string.h>
+#include <helper_functions.h> // includes for SDK helper functions
+#include <helper_cuda.h>      // includes for cuda initialization and error checking
 #include "debayer_kernels.h"
 // Texture reference for reading image
 texture<unsigned char, 2> tex;
 static cudaArray *array = NULL;
 
-// This will output the proper CUDA error strings in the event that a CUDA host call returns an error
-#define checkCudaErrors(err)           __checkCudaErrors (err, __FILE__, __LINE__)
-
-inline void __checkCudaErrors(cudaError err, const char *file, const int line)
-{
-    if (cudaSuccess != err)
-    {
-        fprintf(stderr, "%s(%i) : CUDA Runtime API error %d: %s.\n",
-                file, line, (int)err, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
-  
 __global__ void
 DebayerTex(outPixel *pOut, unsigned int Pitch, int w, int h, bool offset_x, bool offset_y)
 {
@@ -69,7 +58,7 @@ DebayerTex(outPixel *pOut, unsigned int Pitch, int w, int h, bool offset_x, bool
   }
 }
 
-extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp)
+extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp, StopWatchInterface* timer)
 {
   cudaChannelFormatDesc desc;
 
@@ -83,7 +72,13 @@ extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp)
   }
 
   checkCudaErrors(cudaMallocArray(&array, &desc, iw, ih));
+
+  // Timer
+  sdkResetTimer(&timer);
+  sdkStartTimer(&timer);
   checkCudaErrors(cudaMemcpyToArray(array, 0, 0, data, Bpp*sizeof(Pixel)*iw*ih, cudaMemcpyHostToDevice));
+  sdkStopTimer(&timer);
+  printf("Host to Device %f ms\n", sdkGetTimerValue(&timer));
 }
 
 extern "C" void deleteTexture(void)

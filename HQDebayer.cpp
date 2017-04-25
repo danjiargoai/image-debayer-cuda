@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 #include <stdlib.h>
 #include <iostream>
-#include <string.h>
+#include <string>
 #include <helper_functions.h> // includes for SDK helper functions
 #include <helper_cuda.h>      // includes for cuda initialization and error checking
 #include "debayer_kernels.h"
@@ -12,7 +12,7 @@ using namespace std;
 // Functions
 void cleanup(void);
 void initializeData(char *file) ;
-void computeTime();
+void computeTime(string str);
 
 // Global variables
 static int imWidth  = 0;   // Image width
@@ -21,6 +21,7 @@ StopWatchInterface *timer = NULL;
 
 int main(int argc, char **argv)
 {
+  sdkCreateTimer(&timer);
   // Helper
   if (checkCmdLineFlag(argc, (const char **)argv, "help"))
   {
@@ -39,7 +40,6 @@ int main(int argc, char **argv)
   }
 
   // Timer
-  sdkCreateTimer(&timer);
   sdkResetTimer(&timer);
   sdkStartTimer(&timer);
   
@@ -47,11 +47,18 @@ int main(int argc, char **argv)
   checkCudaErrors(cudaDeviceSynchronize());
   
   sdkStopTimer(&timer);
-  computeTime();
+  computeTime("Kernel Execution time");
  
   // Copy data from device to host 
   unsigned char* result = (unsigned char*)malloc(imWidth*imHeight*sizeof(outPixel));
+  // Timer
+  sdkResetTimer(&timer);
+  sdkStartTimer(&timer);
+  
   checkCudaErrors(cudaMemcpy(result, data, imWidth*imHeight*sizeof(outPixel), cudaMemcpyDeviceToHost));
+  
+  sdkStopTimer(&timer);
+  computeTime("Device to Host time");
   
   Mat image_out(imHeight, imWidth, CV_8UC3, result);
   imwrite("out.jpg", image_out);
@@ -62,9 +69,9 @@ int main(int argc, char **argv)
   cleanup();
 }
 
-void computeTime()
+void computeTime(string str)
 {
-    cout << sdkGetTimerValue(&timer) << endl;
+    cout << str << " " << sdkGetTimerValue(&timer) << " ms "<< endl;
 }
 
 void cleanup(void)
@@ -83,7 +90,7 @@ void initializeData(char *file)
   imHeight = image.rows;
   g_Bpp = image.channels();
   pixels = image.data;
-  setupTexture(imWidth, imHeight, pixels, g_Bpp);
+  setupTexture(imWidth, imHeight, pixels, g_Bpp, timer);
 
   memset(pixels, 0x0, g_Bpp * sizeof(Pixel) * imWidth * imHeight);
 }
