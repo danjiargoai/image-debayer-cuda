@@ -58,8 +58,13 @@ DebayerTex(outPixel *pOut, unsigned int Pitch, int w, int h, bool offset_x, bool
   }
 }
 
-extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp, StopWatchInterface* timer)
+extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp)
 {
+
+  cudaEvent_t start, stop;
+  float time;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
   cudaChannelFormatDesc desc;
 
   if (Bpp == 1)
@@ -70,15 +75,24 @@ extern "C" void setupTexture(int iw, int ih, Pixel *data, int Bpp, StopWatchInte
   {
     desc = cudaCreateChannelDesc<uchar4>();
   }
+  
+  if (array == NULL) {
+    cudaEventRecord(start, 0);
+    checkCudaErrors(cudaMallocArray(&array, &desc, iw, ih));
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    printf("Malloc time %f\n", time);
+  } 
 
-  checkCudaErrors(cudaMallocArray(&array, &desc, iw, ih));
-
-  // Timer
-  sdkResetTimer(&timer);
-  sdkStartTimer(&timer);
+  cudaEventRecord(start, 0);
   checkCudaErrors(cudaMemcpyToArray(array, 0, 0, data, Bpp*sizeof(Pixel)*iw*ih, cudaMemcpyHostToDevice));
-  sdkStopTimer(&timer);
-  printf("Host to Device %f ms\n", sdkGetTimerValue(&timer));
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  printf("Host to Device %f ms\n", time);
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
 }
 
 extern "C" void deleteTexture(void)
